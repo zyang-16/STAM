@@ -26,3 +26,11 @@ You can use ```$ ./experiments/***.sh``` to train STAM model. For example, if yo
 
 ## Cite
 
+Please cite our paper if you find this code useful for your research:
+```
+@article{yang2022stam,
+  title={STAM: A Spatiotemporal Aggregation Method for Graph Neural Network-based Recommendation},
+  author={Yang, Zhen and Ding, Ming and Bin, Xu and Yang, Hongxia and Tang, Jie},
+  year={2022}
+}
+```
