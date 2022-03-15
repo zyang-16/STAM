@@ -189,7 +189,7 @@ class Data(object):
     def neg_sampling(self, user):
         while True:
             neg_id = np.random.randint(low=0, high=self.n_items, size=1)[0]
-            if neg_id not in self.train_dict[user] and neg_id not in self.test_dict[user]:
+            if neg_id not in self.train_dict[user]:
                 neg_id = neg_id + self.n_users # item idx: M ~ (M+N-1)
                 return neg_id
 
