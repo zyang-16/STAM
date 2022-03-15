@@ -126,7 +126,6 @@ class Data(object):
         
         print('already normalize adjacency matrix', time() - t2)
         return norm_adj_mat.tocsr()
-        #return adj_mat.tocsr()
 
     def build_temporal_order(self, maxlen, sequence):
         order = []
@@ -157,7 +156,6 @@ class Data(object):
         
         # add last node
         padding_node = list(set(range(0, self.n_nodes)) - set(temporal_orders.keys()))
-        #print("padding_node---------", padding_node)
         for idx in padding_node:
             temporal_orders[idx].extend([idx]*maxlen)
         
