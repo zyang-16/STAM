@@ -96,6 +96,7 @@ class Data(object):
             
         return norm_adj_mat
 
+    # get adj matrix
     def create_adj_mat(self):
         t1 = time()
         adj_mat = sp.dok_matrix((self.n_users + self.n_items, self.n_users + self.n_items), dtype=np.float32)
