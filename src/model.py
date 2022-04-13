@@ -106,6 +106,9 @@ class STAM4Rec(Model):
         self.user_embeddings = tf.Variable(initializer([self.n_users, self.input_dim]), name='user_embeddings') # [M, d]
         self.item_embeddings = tf.Variable(initializer([self.n_items, self.input_dim]), name='item_embeddings') # [N, d]
 
+        self.stam_layer = STAM(input_dim=self.input_dim, n_heads=self.n_heads,
+                          input_length=self.input_length, hidden_dim=self.hidden_dim)
+        
         self.init_embeddings = tf.concat([self.user_embeddings, self.item_embeddings], axis=0) # [M+N, d] 
 
         print("self.init_embeddings", self.init_embeddings)
@@ -145,9 +148,6 @@ class STAM4Rec(Model):
 
     def get_stam_weights(self):
         # obtain spatiotemporal attention weights [M+N, M+N]
-        stam_layer = STAM(input_dim=self.input_dim, n_heads=self.n_heads,
-                          input_length=self.input_length, hidden_dim=self.hidden_dim)
-
         length = self.n_users+self.n_items
         stam_batch_size = self.batch_size // 8
         batch_num = int(length // stam_batch_size)
@@ -159,7 +159,7 @@ class STAM4Rec(Model):
             stam_inputs = self.get_temporal_neighbors(input_idx_batch) # [batch_size, S, d] 
             print("stam_inputs:", stam_inputs)
             # STAM forward  
-            stam_outs_batch = stam_layer(stam_inputs) # spatiotemporal neighbor embeddings [batch_size, S, d]
+            stam_outs_batch = self.stam_layer(stam_inputs) # spatiotemporal neighbor embeddings [batch_size, S, d]
             W_1 = tf.expand_dims(tf.nn.embedding_lookup(self.init_embeddings, input_idx_batch), 1) #[batch_size, 1, d]
             stam_weights_batch = tf.nn.softmax(tf.squeeze(tf.matmul(stam_outs_batch, tf.transpose(W_1, [0, 2, 1]))), 1) # [batch_size, S]
             if i == 0:
@@ -168,7 +168,7 @@ class STAM4Rec(Model):
                 stam_weights = tf.concat([stam_weights, stam_weights_batch], 0)
         input_idx_last = tf.range(batch_num * stam_batch_size, self.n_users+self.n_items)
         stam_inputs = self.get_temporal_neighbors(input_idx_last) # [batch_size, S, d] 
-        stam_outs_batch = stam_layer(stam_inputs)
+        stam_outs_batch = self.stam_layer(stam_inputs)
         W_1 = tf.expand_dims(tf.nn.embedding_lookup(self.init_embeddings, input_idx_last), 1)
         stam_weights_batch = tf.nn.softmax(tf.squeeze(tf.matmul(stam_outs_batch, tf.transpose(W_1, [0, 2, 1]))), 1)
         stam_weights = tf.concat([stam_weights, stam_weights_batch], 0)
