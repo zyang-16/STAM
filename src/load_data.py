@@ -52,8 +52,7 @@ class Data(object):
                 uid, iid = l.strip().split('\t')
                 self.R[int(uid), int(iid)-self.n_users] = 1.
         # build temporal table 
-        self.train_temporal_table = self.build_temporal_table(self.maxlen, self.train_user_items_dict, self.train_item_users_dict) # [M+N, S] 
-        self.test_temporal_table = self.build_temporal_table(self.maxlen, self.test_user_items_dict, self.test_item_users_dict) # [M+N, S] 
+        self.train_temporal_table, self.temporal_index = self.build_temporal_table(self.maxlen, self.train_user_items_dict, self.train_item_users_dict) # [M+N, S] 
         
     def load_data_set(self, train_file, test_file):
         train_dict = defaultdict(list)
@@ -80,7 +79,6 @@ class Data(object):
                     test_user_items_dict[int(uid)].append(int(iid))
                     test_item_users_dict[int(iid)].append(int(uid))
                     test_data.append((int(uid), int(iid)))
-
         return train_data, test_data, train_dict, test_dict, train_user_items_dict, train_item_users_dict, test_user_items_dict, test_item_users_dict 
 
 
@@ -130,40 +128,47 @@ class Data(object):
 
     def build_temporal_order(self, maxlen, sequence):
         order = []
+        index_bool = []
         last_node = sequence[-1]
         k = len(sequence)
         if k >= maxlen: 
             order.extend(sequence[k-maxlen:]) # recent maxlen items
+            index_bool.extend([1]*maxlen)
         else:
             order.extend(sequence[:k] + [last_node] * (maxlen - k)) # padding unexist item id 
-       
-        return order
+            index_bool.extend([1]*k + [0]*(maxlen - k))
+        return order, index_bool
 
 
     def build_temporal_table(self, maxlen, user_items, item_users):
+        user_items = sorted(user_items.items(), key=lambda d: d[0])
+        item_users = sorted(item_users.items(), key=lambda d: d[0])
         # return [M+N, S]
         temporal_orders = defaultdict(list)
+        node_index = defaultdict(list)
+        i = 0
 
-        for user_id in list(user_items.keys()): 
-            item_list = user_items[user_id] 
-            order = self.build_temporal_order(maxlen, item_list)
+        for user_id, item_list in user_items: 
+            order, index = self.build_temporal_order(maxlen, item_list)
             temporal_orders[user_id].extend(order)
+            node_index[user_id].extend(index)
         
-        
-        for item_id in list(item_users.keys()): 
-            user_list = item_users[item_id] 
-            order = self.build_temporal_order(maxlen, user_list)
+        for item_id, user_list in item_users: 
+            order, index = self.build_temporal_order(maxlen, user_list)
             temporal_orders[item_id].extend(order)
+            node_index[item_id].extend(index)
         
         # add last node
         padding_node = list(set(range(0, self.n_nodes)) - set(temporal_orders.keys()))
         for idx in padding_node:
             temporal_orders[idx].extend([idx]*maxlen)
+            node_index[idx].extend([0]*maxlen)
         
         # build temporal_table [M+N, S]
         temporal_table = [temporal_orders[key] for key in sorted(temporal_orders.keys())]
-
-        return np.array(temporal_table)
+        node_index = [node_index[key] for key in sorted(node_index.keys())]
+        
+        return np.array(temporal_table), np.array(node_index)
 
     def get_batch_data(self, data_list):
         random.shuffle(data_list) 
