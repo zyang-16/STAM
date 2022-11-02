@@ -1,6 +1,6 @@
 import numpy as np
-import tensorflow as tf
-from tensorflow.python.ops.gen_array_ops import placeholder 
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 from load_data import Data
 from parser import parse_args
 from model import STAM4Rec
@@ -17,19 +17,18 @@ def train(data_generator, args):
     config['n_users'] = data_generator.n_users
     config['n_items'] = data_generator.n_items
     config['temporal_table'] = data_generator.train_temporal_table
+    config['temporal_index'] = data_generator.temporal_index
     norm_adj = data_generator.get_adj_mat() 
     config['norm_adj'] = norm_adj
-    print("temporal_table", config['temporal_table'])
-    #np.savetxt('temporal.txt', config['temporal_table'], fmt="%d", delimiter=" ")
     
     """
     ********************************************
     load model
     """
     placeholders = {
-        'users':tf.compat.v1.placeholder(tf.int32, shape=(None), name="users"),
-        'pos_items':tf.compat.v1.placeholder(tf.int32, shape=(None), name="pos_items"),
-        'neg_items':tf.compat.v1.placeholder(tf.int32, shape=(None), name="neg_items"),
+        'users':tf.placeholder(tf.int32, shape=(None), name="users"),
+        'pos_items':tf.placeholder(tf.int32, shape=(None), name="pos_items"),
+        'neg_items':tf.placeholder(tf.int32, shape=(None), name="neg_items"),
     }
     model = STAM4Rec(placeholders, config)
 
@@ -53,19 +52,14 @@ def train(data_generator, args):
     for epoch in range(1, args.epochs+1):
         batch_data = data_generator.get_batch_data(train_data)
         batch_num = len(batch_data)
-        # t1 = time.time()
-        stam_weights = sess.run(model.stam_weights)
-        # print("t1....", time.time() - t1)
         for idx in range(batch_num):
             total_steps += 1
             users, pos_items, neg_items = data_generator.sample(batch_data[idx])
             train_time = time.time() 
-            _, batch_loss = sess.run([model.opt_op, model.bpr_loss], feed_dict={model.users:users, model.pos_items:pos_items, model.neg_items:neg_items, model.A_new:stam_weights})
-        
-        
+
+            _, batch_loss = sess.run([model.opt_op, model.bpr_loss], feed_dict={model.users:users, model.pos_items:pos_items, model.neg_items:neg_items})
 
             if total_steps % args.print_step == 0: 
-                    # summary_write.add_summary(sess.run(merged), total_steps)
                     print("Idx:", '%04d' % idx,
                         "train_loss=", "{:.5f}".format(batch_loss),
                         "time=", "{:.5f}".format(time.time() - train_time)) 
@@ -99,7 +93,6 @@ def train(data_generator, args):
 
 def test(sess, model, data_generator, norm_adj, args): 
     test_users = list(data_generator.test_dict.keys()) 
-    # print("test_users", test_users)
     Ks = eval(args.Ks)
     result = {'mrr': np.zeros(len(Ks)), 'ndcg': np.zeros(len(Ks)), 'hits': np.zeros(len(Ks))}
 
@@ -113,17 +106,15 @@ def test(sess, model, data_generator, norm_adj, args):
     # get item_embeds
     item_batch_size = args.batch_size
     n_item_batchs = len(item_batch) // item_batch_size + 1
-    stam_weights = sess.run(model.stam_weights)
     for v_batch_id in range(n_item_batchs):
         start = v_batch_id * item_batch_size
         end = (v_batch_id + 1) * item_batch_size
         item_N = item_batch[start:end]
-        item_embeds_batch = sess.run(model.pos_item_embed,{model.pos_items: item_N, model.A_new:stam_weights})
+        item_embeds_batch = sess.run(model.pos_item_embed,{model.pos_items: item_N})
         if v_batch_id == 0:
             item_embeds = item_embeds_batch
         else:
             item_embeds = np.vstack((item_embeds, item_embeds_batch))
-    #print("item_embeds", item_embeds.shape)
     
     d = item_embeds.shape[-1]
 
@@ -136,7 +127,7 @@ def test(sess, model, data_generator, norm_adj, args):
 
         user_batch = test_users[start: end]
 
-        user_embeds = sess.run(model.user_emb, {model.users: user_batch, model.A_new:stam_weights})
+        user_embeds = sess.run(model.user_emb, {model.users: user_batch})
 
         D, I = index.search(user_embeds, 200) 
 
