@@ -14,7 +14,7 @@ STAM is a novel aggregation method, which generates spatiotemporal neighbor embe
 
 ## Preparation
 * Python 3.7
-* Tensorflow 1.14.0
+* Tensorflow 2.10.0
 
 
 ## Training
