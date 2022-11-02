@@ -1,4 +1,5 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 from parser import parse_args
 
 args = parse_args()
@@ -46,7 +47,7 @@ class STAM(Layer):
         self.attn_drop = args.attn_drop
         self.attention_head_size = int(hidden_dim / n_heads) 
         
-        xavier_init = tf.contrib.layers.xavier_initializer()
+        xavier_init = tf.random_normal_initializer(stddev=0.01)
         with tf.compat.v1.variable_scope(self.name + '_vars', reuse=tf.compat.v1.AUTO_REUSE):
             # define positional embedding
             self.vars["position_embedding"] = tf.compat.v1.get_variable('position_embedding', 
